@@ -1,0 +1,276 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | TRRS{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block page_subtitle %}{{ subtitle }}{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div class="dashboard-title">
+        <h4>{{ title }}</h4>
+        <p>{{ subtitle }}</p>
+    </div>
+
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% if page_key == "sales" %}
+
+<div class="dashboard-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-receipt me-2"></i>Record Branch Sales</h6>
+    </div>
+
+    <form method="POST" action="{{ url_for('sales') }}" class="p-3">
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Branch</label>
+                <select name="branch_id" class="form-select" required>
+                    <option value="">Select branch</option>
+                    <!-- Populate from your branches table -->
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Sales Date</label>
+                <input type="date" name="sales_date"
+                       class="form-control" value="{{ today }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Ticket Revenue (KES)</label>
+                <input type="number" name="ticket_revenue"
+                       class="form-control" min="0" step="0.01"
+                       placeholder="0.00" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Parcel Revenue (KES)</label>
+                <input type="number" name="parcel_revenue"
+                       class="form-control" min="0" step="0.01"
+                       placeholder="0.00" required>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Reference / Remarks</label>
+                <textarea name="remarks" class="form-control"
+                          rows="3" maxlength="500"></textarea>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Record Sales
+                </button>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+{% elif page_key == "banking" %}
+
+<div class="dashboard-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-bank me-2"></i>Record Branch Banking</h6>
+    </div>
+
+    <form method="POST" action="{{ url_for('banking') }}" class="p-3">
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Branch</label>
+                <select name="branch_id" class="form-select" required>
+                    <option value="">Select branch</option>
+                    <!-- Populate from your branches table -->
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Banking Date</label>
+                <input type="date" name="banking_date"
+                       class="form-control" value="{{ today }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Amount Banked (KES)</label>
+                <input type="number" name="amount_banked"
+                       class="form-control" min="0" step="0.01"
+                       placeholder="0.00" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Bank / Payment Method</label>
+                <input type="text" name="payment_method"
+                       class="form-control" maxlength="100"
+                       placeholder="e.g. Bank deposit or M-Pesa" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Banking Reference</label>
+                <input type="text" name="banking_reference"
+                       class="form-control" maxlength="100" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Remarks</label>
+                <input type="text" name="remarks"
+                       class="form-control" maxlength="500">
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Record Banking
+                </button>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+{% elif page_key == "reconciliation" %}
+
+<div class="dashboard-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-arrow-left-right me-2"></i>Reconcile Revenue</h6>
+    </div>
+
+    <form method="POST" action="{{ url_for('reconciliation') }}" class="p-3">
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Branch</label>
+                <select name="branch_id" class="form-select" required>
+                    <option value="">Select branch</option>
+                    <!-- Populate from your branches table -->
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Reconciliation Date</label>
+                <input type="date" name="reconciliation_date"
+                       class="form-control" value="{{ today }}" required>
+            </div>
+
+            <div class="col-12">
+                <p class="text-muted small mb-0">
+                    Expected revenue and banked revenue should be retrieved
+                    from the recorded sales and banking entries. They should
+                    not be entered again manually during reconciliation.
+                </p>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-calculator me-1"></i> Run Reconciliation
+                </button>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<div class="dashboard-card mt-3">
+    <div class="card-header-custom">
+        <h6>Variance Calculation</h6>
+    </div>
+    <div class="p-3">
+        <p class="mb-2"><strong>Variance = Amount Banked − Expected Revenue</strong></p>
+        <p class="text-danger mb-1">Negative variance: under-banking.</p>
+        <p class="text-success mb-1">Positive variance: over-banking.</p>
+        <p class="text-muted mb-0">Zero variance: fully reconciled.</p>
+    </div>
+</div>
+
+{% elif page_key == "exceptions" %}
+
+<div class="dashboard-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-exclamation-triangle me-2"></i>Revenue Exceptions</h6>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th>Date</th>
+                    <th>Expected (KES)</th>
+                    <th>Banked (KES)</th>
+                    <th>Variance (KES)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Exception records will appear here once database
+                        integration is implemented.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif page_key == "reports" %}
+
+<div class="dashboard-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-file-earmark-bar-graph me-2"></i>Generate Revenue Report</h6>
+    </div>
+
+    <form method="POST" action="{{ url_for('reports') }}" class="p-3">
+        <div class="row g-3">
+
+            <div class="col-md-4">
+                <label class="form-label">Report Type</label>
+                <select name="report_type" class="form-select" required>
+                    <option value="daily">Daily Revenue</option>
+                    <option value="branch">Branch Performance</option>
+                    <option value="variance">Variance / Exceptions</option>
+                    <option value="banking">Banking Summary</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date"
+                       class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date"
+                       class="form-control" value="{{ today }}" required>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-text me-1"></i>
+                    Generate Report
+                </button>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+{% endif %}
+
+{% endblock %}

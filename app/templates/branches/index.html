@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Branches | TRRS{% endblock %}
+{% block page_heading %}Branch Management{% endblock %}
+{% block page_subtitle %}View and search registered transport branches{% endblock %}
+
+{% block content %}
+
+<style>
+    .branches-container {
+        padding-bottom: 24px;
+    }
+
+    .branches-card {
+        background: var(--bs-body-bg, #ffffff);
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+    }
+
+    .branches-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 22px 24px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .branches-heading {
+        margin: 0 0 5px;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--bs-emphasis-color, #212529);
+    }
+
+    .branches-description {
+        margin: 0;
+        font-size: 13px;
+        color: var(--bs-secondary-color, #6c757d);
+    }
+
+    .branch-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 20px;
+        background: #edf4ff;
+        color: #2458a6;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .branches-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 18px 24px;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .branch-search {
+        position: relative;
+        width: 100%;
+        max-width: 380px;
+    }
+
+    .branch-search input {
+        width: 100%;
+        height: 44px;
+        padding: 10px 42px 10px 42px;
+        border: 1px solid #d8dee8;
+        border-radius: 9px;
+        background: var(--bs-body-bg, #ffffff);
+        color: var(--bs-body-color, #212529);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .branch-search input:focus {
+        border-color: #3768d4;
+        box-shadow: 0 0 0 3px rgba(55, 104, 212, 0.12);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #788395;
+        font-size: 17px;
+        pointer-events: none;
+    }
+
+    .clear-search {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        font-size: 19px;
+        cursor: pointer;
+        display: none;
+        line-height: 1;
+    }
+
+    .clear-search:hover {
+        color: #dc3545;
+    }
+
+    .branch-search-hint {
+        font-size: 12px;
+        color: var(--bs-secondary-color, #6c757d);
+    }
+
+    .branches-table {
+        margin: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .branches-table thead th {
+        padding: 15px 24px;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        color: var(--bs-secondary-color, #596273);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        border-bottom: 1px solid #e9ecef;
+        white-space: nowrap;
+    }
+
+    .branches-table tbody td {
+        padding: 15px 24px;
+        font-size: 13px;
+        border-bottom: 1px solid #edf0f4;
+        vertical-align: middle;
+        color: var(--bs-body-color, #343a40);
+    }
+
+    .branches-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .branches-table tbody tr:hover {
+        background: var(--bs-tertiary-bg, #f8faff);
+    }
+
+    .branches-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .branch-number {
+        color: #8791a1 !important;
+        font-size: 12px !important;
+        width: 80px;
+    }
+
+    .branch-name {
+        font-weight: 600;
+    }
+
+    .branch-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .branch-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: 10px;
+        background: #edf4ff;
+        color: #2458a6;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .branch-date {
+        color: var(--bs-secondary-color, #6c757d) !important;
+        white-space: nowrap;
+    }
+
+    .branches-empty {
+        display: none;
+        padding: 42px 20px;
+        text-align: center;
+    }
+
+    .branches-empty-icon {
+        font-size: 30px;
+        margin-bottom: 10px;
+    }
+
+    .branches-empty h6 {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .branches-empty p {
+        font-size: 13px;
+        color: var(--bs-secondary-color, #6c757d);
+        margin-bottom: 15px;
+    }
+
+    .reset-search {
+        padding: 8px 14px;
+        border: 1px solid #d8dee8;
+        border-radius: 7px;
+        background: var(--bs-body-bg, #ffffff);
+        color: var(--bs-body-color, #212529);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .reset-search:hover {
+        background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+
+    .branches-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 14px 24px;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border-top: 1px solid #e9ecef;
+        font-size: 12px;
+        color: var(--bs-secondary-color, #6c757d);
+    }
+
+    @media (max-width: 576px) {
+        .branches-header,
+        .branches-toolbar {
+            padding: 16px;
+        }
+
+        .branches-table thead th,
+        .branches-table tbody td {
+            padding: 12px 14px;
+        }
+
+        .branches-footer {
+            padding: 13px 16px;
+        }
+
+        .branch-search {
+            max-width: none;
+        }
+    }
+</style>
+
+<div class="branches-container">
+    <div class="branches-card">
+
+        <!-- Header -->
+        <div class="branches-header">
+            <div>
+                <h5 class="branches-heading">Registered Branches</h5>
+                <p class="branches-description">
+                    Manage and locate branches registered in the system.
+                </p>
+            </div>
+
+            <span class="branch-count">
+                <span aria-hidden="true">&#9679;</span>
+                <span id="branchCount">{{ branches|length }}</span>
+                <span id="branchCountLabel">
+                    {{ 'branch' if branches|length == 1 else 'branches' }}
+                </span>
+            </span>
+        </div>
+
+        <!-- Search toolbar -->
+        <div class="branches-toolbar">
+            <div class="branch-search">
+                <span class="search-icon" aria-hidden="true">&#9906;</span>
+
+                <input
+                    type="search"
+                    id="branchSearch"
+                    placeholder="Search branch name..."
+                    aria-label="Search branches by name"
+                    autocomplete="off"
+                >
+
+                <button
+                    type="button"
+                    class="clear-search"
+                    id="clearSearch"
+                    aria-label="Clear branch search"
+                    title="Clear search"
+                >&times;</button>
+            </div>
+
+            <span class="branch-search-hint">
+                Search by branch name
+            </span>
+        </div>
+
+        <!-- Branch table -->
+        <div class="table-responsive">
+            <table class="table branches-table" id="branchesTable">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Branch Name</th>
+                        <th scope="col">Date Registered</th>
+                    </tr>
+                </thead>
+
+                <tbody id="branchesTableBody">
+                    {% for branch in branches %}
+                    <tr class="branch-row">
+                        <td class="branch-number">{{ loop.index }}</td>
+
+                        <td>
+                            <div class="branch-name-cell">
+                                <!-- <span class="branch-avatar">
+                                    <i class="bi bi-building"></i>
+                                </span> -->
+
+                                <span class="branch-name">
+                                    {{ branch.branch_name }}
+                                </span>
+                            </div>
+                        </td>
+
+                        <td class="branch-date">
+                            {{ branch.created_at.strftime('%d %b %Y') if branch.created_at else '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- No results message -->
+        <div class="branches-empty" id="noBranchesMessage">
+            <div class="branches-empty-icon" aria-hidden="true">&#128269;</div>
+            <h6>No branches found</h6>
+            <p id="noBranchesText">
+                No branches match your search.
+            </p>
+            <button type="button" class="reset-search" id="resetSearch">
+                Clear search
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="branches-footer">
+            <span id="resultsSummary">
+                Showing {{ branches|length }} of {{ branches|length }} branches
+            </span>
+            <span>Transport Revenue Reconciliation System</span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("branchSearch");
+    const clearButton = document.getElementById("clearSearch");
+    const resetButton = document.getElementById("resetSearch");
+    const table = document.getElementById("branchesTable");
+    const tableBody = document.getElementById("branchesTableBody");
+    const emptyMessage = document.getElementById("noBranchesMessage");
+    const noBranchesText = document.getElementById("noBranchesText");
+    const countElement = document.getElementById("branchCount");
+    const countLabel = document.getElementById("branchCountLabel");
+    const resultsSummary = document.getElementById("resultsSummary");
+
+    const rows = Array.from(tableBody.querySelectorAll(".branch-row"));
+    const totalBranches = rows.length;
+
+    // Keep the displayed branch list alphabetically sorted.
+    rows.sort(function (a, b) {
+        const nameA = a.querySelector(".branch-name").textContent.trim();
+        const nameB = b.querySelector(".branch-name").textContent.trim();
+
+        return nameA.localeCompare(nameB, undefined, {
+            sensitivity: "base"
+        });
+    });
+
+    rows.forEach(function (row, index) {
+        tableBody.appendChild(row);
+        row.querySelector(".branch-number").textContent = index + 1;
+    });
+
+    function filterBranches() {
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach(function (row) {
+            const branchName = row
+                .querySelector(".branch-name")
+                .textContent.trim()
+                .toLowerCase();
+
+            const matches = branchName.includes(searchTerm);
+
+            row.style.display = matches ? "" : "none";
+
+            if (matches) {
+                visibleCount++;
+            }
+        });
+
+        countElement.textContent = visibleCount;
+        countLabel.textContent = visibleCount === 1 ? "branch" : "branches";
+
+        resultsSummary.textContent =
+            "Showing " + visibleCount + " of " + totalBranches + " branches";
+
+        clearButton.style.display = searchTerm ? "block" : "none";
+
+        table.style.display = visibleCount > 0 ? "" : "none";
+        emptyMessage.style.display = visibleCount === 0 ? "block" : "none";
+
+        noBranchesText.textContent = totalBranches === 0
+            ? "No branches have been registered in the system yet."
+            : "No branches match \"" + searchInput.value.trim() + "\".";
+    }
+
+    searchInput.addEventListener("input", filterBranches);
+
+    clearButton.addEventListener("click", function () {
+        searchInput.value = "";
+        filterBranches();
+        searchInput.focus();
+    });
+
+    resetButton.addEventListener("click", function () {
+        searchInput.value = "";
+        filterBranches();
+        searchInput.focus();
+    });
+
+    filterBranches();
+});
+</script>
+
+{% endblock %}

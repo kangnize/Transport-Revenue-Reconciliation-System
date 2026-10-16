@@ -1,0 +1,535 @@
+
+{% extends "base.html" %}
+
+{% block title %}Sales Management | TRRS{% endblock %}
+{% block page_heading %}Sales Management{% endblock %}
+{% block page_subtitle %}Record and monitor branch ticket and parcel revenue{% endblock %}
+
+{% block content %}
+
+<style>
+.sales-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.04);
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+.sales-card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+}
+.sales-card-header h5 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 5px;
+}
+.sales-card-header p {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 13px;
+    margin: 0;
+}
+.sales-form-body { padding: 24px; }
+.sales-field { margin-bottom: 20px; }
+.sales-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.sales-input, .sales-search {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #d8dee8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #212529);
+}
+.sales-input:focus, .sales-search:focus {
+    outline: none;
+    border-color: #3768d4;
+    box-shadow: 0 0 0 3px rgba(55,104,212,.12);
+}
+.sales-field small {
+    display: block;
+    margin-top: 6px;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 12px;
+}
+.branch-search-box { position: relative; }
+.branch-search-box .sales-input { padding-right: 36px; }
+.branch-search-status {
+    margin-top: 6px;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 12px;
+}
+.sales-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: var(--bs-tertiary-bg, #f5f8ff);
+    border: 1px solid #e0e8f7;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+}
+.sales-summary-label {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 13px;
+}
+.sales-total {
+    color: #2458a6;
+    font-size: 25px;
+    font-weight: 750;
+}
+.sales-btn {
+    border: none;
+    background: #2458a6;
+    color: white;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sales-btn:hover { background: #194782; }
+.sales-btn:disabled {
+    opacity: .65;
+    cursor: not-allowed;
+}
+.sales-search-wrap {
+    padding: 18px 24px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-bottom: 1px solid #e9ecef;
+}
+.sales-search { max-width: 430px; }
+.sales-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0;
+}
+.sales-table th {
+    padding: 14px 20px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--bs-secondary-color, #6c757d);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+.sales-table td {
+    padding: 14px 20px;
+    font-size: 13px;
+    border-bottom: 1px solid #edf0f4;
+    white-space: nowrap;
+}
+.sales-table tbody tr:hover {
+    background: var(--bs-tertiary-bg, #f8faff);
+}
+.sale-type {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.ticket-type { background: #eaf2ff; color: #2458a6; }
+.parcel-type { background: #e6f7ef; color: #18794e; }
+.payment-type {
+    color: var(--bs-body-color, #343a40);
+    font-weight: 500;
+}
+.sales-empty {
+    display: none;
+    text-align: center;
+    padding: 30px 15px;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 13px;
+}
+.sales-footer {
+    padding: 14px 24px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 12px;
+    color: var(--bs-secondary-color, #6c757d);
+}
+.sales-total-card {
+    padding: 20px 24px;
+    border-radius: 14px;
+    border: 1px solid #dce7fa;
+    background: var(--bs-body-bg, #fff);
+    margin-bottom: 24px;
+}
+.sales-total-card .label {
+    font-size: 12px;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 7px;
+}
+.sales-total-card .amount {
+    font-size: 26px;
+    font-weight: 750;
+    color: #2458a6;
+}
+.sales-total-card .note {
+    font-size: 12px;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 5px;
+}
+@media (max-width: 576px) {
+    .sales-form-body, .sales-card-header { padding: 17px; }
+    .sales-table th, .sales-table td { padding: 12px; }
+    .sales-search-wrap, .sales-footer { padding: 15px; }
+}
+</style>
+
+<!-- Overall recorded revenue -->
+<div class="sales-total-card">
+    <div class="label">Total Recorded Sales</div>
+    <div class="amount">
+        KES {{ "{:,.2f}".format(total_sales|float) }}
+    </div>
+    <div class="note">
+        All sales records currently stored in the database.
+    </div>
+</div>
+
+<!-- Record sales -->
+<div class="sales-card">
+    <div class="sales-card-header">
+        <h5>Record Branch Sales</h5>
+        <p>Enter consolidated ticket and parcel revenue for a branch.</p>
+    </div>
+
+    <div class="sales-form-body">
+        <form method="POST" action="{{ url_for('sales') }}" id="salesForm">
+
+            <div class="row">
+                <div class="col-md-6 sales-field">
+                    <label class="sales-label" for="branchSearch">
+                        Search Branch *
+                    </label>
+
+                    <div class="branch-search-box">
+                        <input
+                            class="sales-input"
+                            type="search"
+                            id="branchSearch"
+                            placeholder="Type a branch name..."
+                            autocomplete="off"
+                            aria-label="Search branch names"
+                        >
+                    </div>
+
+                    <div class="branch-search-status" id="branchSearchStatus">
+                        {{ branches|length }} branches available
+                    </div>
+
+                    <label class="sales-label mt-3" for="branch_id">
+                        Selected Branch
+                    </label>
+
+                    <select
+                        class="sales-input"
+                        name="branch_id"
+                        id="branch_id"
+                        required
+                    >
+                        <option value="">Select a branch</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}">
+                            {{ branch.branch_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6 sales-field">
+                    <label class="sales-label" for="sale_date">
+                        Sales Date *
+                    </label>
+                    <input
+                        class="sales-input"
+                        type="date"
+                        id="sale_date"
+                        name="sale_date"
+                        value="{{ today }}"
+                        max="{{ today }}"
+                        required
+                    >
+                    <small>Date the branch generated the revenue.</small>
+
+                    
+                <label class="sales-label mt-3" for="payment_type">
+                    Payment Type *
+                </label>
+
+                <select
+                    class="sales-input"
+                    id="payment_type"
+                    name="payment_type"
+                    required
+                >
+                    <option value="">Select payment type</option>
+                    <option value="MPESA">M-PESA</option>
+                    <option value="CASH">CASH</option>
+                </select>
+
+                <small>Select M-PESA or CASH.</small>
+
+                </div>
+
+                <div class="col-md-6 sales-field">
+                    <label class="sales-label" for="ticket_sales">
+                        Ticket Revenue (KES)
+                    </label>
+                    <input
+                        class="sales-input revenue-input"
+                        type="number"
+                        id="ticket_sales"
+                        name="ticket_sales"
+                        min="0"
+                        max="9999999999999.99"
+                        step="0.01"
+                        value="0.00"
+                        required
+                    >
+                    <small>Enter ticket revenue, or zero if none.</small>
+                </div>
+
+                <div class="col-md-6 sales-field">
+                    <label class="sales-label" for="parcel_sales">
+                        Parcel Revenue (KES)
+                    </label>
+                    <input
+                        class="sales-input revenue-input"
+                        type="number"
+                        id="parcel_sales"
+                        name="parcel_sales"
+                        min="0"
+                        max="9999999999999.99"
+                        step="0.01"
+                        value="0.00"
+                        required
+                    >
+                    <small>Enter parcel revenue, or zero if none.</small>
+                </div>
+            </div>
+
+            <div class="sales-summary">
+                <div>
+                    <div class="sales-summary-label">
+                        Combined Total Sales
+                    </div>
+                    <div style="font-size:12px;color:var(--bs-secondary-color,#6c757d)">
+                        Ticket revenue + parcel revenue
+                    </div>
+                </div>
+
+                <div class="sales-total">
+                    KES <span id="totalRevenue">0.00</span>
+                </div>
+            </div>
+
+            <button type="submit" class="sales-btn" id="saveSalesBtn">
+                Save Sales Records
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Sales history -->
+<div class="sales-card">
+    <div class="sales-card-header">
+        <h5>Sales Records</h5>
+        <p>Search and review previously recorded revenue.</p>
+    </div>
+
+    <div class="sales-search-wrap">
+        <input
+            type="search"
+            id="salesSearch"
+            class="sales-search"
+            placeholder="Search branch, sale type, payment or date..."
+            aria-label="Search sales records"
+        >
+    </div>
+
+    <div class="table-responsive">
+        <table class="sales-table" id="salesTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Branch</th>
+                    <th>Sale Type</th>
+                    <th>Payment Type</th>
+                    <th>Sales Date</th>
+                    <th>Amount (KES)</th>
+                </tr>
+            </thead>
+
+            <tbody id="salesTableBody">
+                {% for record in sales_records %}
+                <tr class="sale-row">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ record.branch_name }}</td>
+                    <td>
+                        {% if record.sale_type|lower == 'ticket' %}
+                            <span class="sale-type ticket-type">Ticket</span>
+                        {% elif record.sale_type|lower == 'parcel' %}
+                            <span class="sale-type parcel-type">Parcel</span>
+                        {% else %}
+                            <span class="sale-type">
+                                {{ record.sale_type }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="payment-type">
+                        {{ record.payment_type or 'Unspecified' }}
+                    </td>
+                    <td>
+                        {{ record.sale_date.strftime('%d %b %Y') }}
+                    </td>
+                    <td>
+                        {{ "{:,.2f}".format(record.total_sales|float) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="sales-empty" id="salesEmpty">
+        No sales records match your search.
+    </div>
+
+    <div class="sales-footer" id="salesFooter">
+        Showing {{ sales_records|length }} sales records
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const ticketInput = document.getElementById("ticket_sales");
+    const parcelInput = document.getElementById("parcel_sales");
+    const totalDisplay = document.getElementById("totalRevenue");
+
+    const branchSearch = document.getElementById("branchSearch");
+    const branchSelect = document.getElementById("branch_id");
+    const branchStatus = document.getElementById("branchSearchStatus");
+
+    const salesSearch = document.getElementById("salesSearch");
+    const salesRows = Array.from(document.querySelectorAll(".sale-row"));
+    const salesTable = document.getElementById("salesTable");
+    const salesEmpty = document.getElementById("salesEmpty");
+    const salesFooter = document.getElementById("salesFooter");
+
+    const originalBranchOptions = Array.from(branchSelect.options).slice(1);
+
+    // Calculate the combined ticket and parcel revenue.
+    function updateTotal() {
+        const ticket = Number(ticketInput.value) || 0;
+        const parcel = Number(parcelInput.value) || 0;
+
+        totalDisplay.textContent = (ticket + parcel).toLocaleString(
+            "en-KE",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        );
+    }
+
+    ticketInput.addEventListener("input", updateTotal);
+    parcelInput.addEventListener("input", updateTotal);
+
+    // Search branches without reloading the page.
+    branchSearch.addEventListener("input", function () {
+        const term = branchSearch.value.trim().toLowerCase();
+        const previousSelection = branchSelect.value;
+
+        branchSelect.innerHTML = "";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select a branch";
+        branchSelect.appendChild(placeholder);
+
+        let matches = 0;
+
+        originalBranchOptions.forEach(function (option) {
+            if (option.textContent.trim().toLowerCase().includes(term)) {
+                branchSelect.appendChild(option.cloneNode(true));
+                matches++;
+            }
+        });
+
+        if (
+            previousSelection &&
+            Array.from(branchSelect.options).some(
+                option => option.value === previousSelection
+            )
+        ) {
+            branchSelect.value = previousSelection;
+        }
+
+        branchStatus.textContent =
+            matches + (matches === 1 ? " matching branch" : " matching branches");
+    });
+
+    // Search saved sales records.
+    salesSearch.addEventListener("input", function () {
+        const term = salesSearch.value.trim().toLowerCase();
+        let visible = 0;
+
+        salesRows.forEach(function (row) {
+            const matches = row.textContent.toLowerCase().includes(term);
+            row.style.display = matches ? "" : "none";
+
+            if (matches) visible++;
+        });
+
+        salesTable.style.display = visible > 0 ? "" : "none";
+        salesEmpty.style.display = visible > 0 ? "none" : "block";
+
+        salesFooter.textContent =
+            "Showing " + visible + " of " + salesRows.length + " sales records";
+    });
+
+    // Prevent invalid submissions in the browser.
+    document.getElementById("salesForm").addEventListener(
+        "submit",
+        function (event) {
+            const ticket = Number(ticketInput.value);
+            const parcel = Number(parcelInput.value);
+
+            if (
+                !branchSelect.value ||
+                !document.getElementById("payment_type").value ||
+                !Number.isFinite(ticket) ||
+                !Number.isFinite(parcel) ||
+                ticket < 0 ||
+                parcel < 0 ||
+                (ticket === 0 && parcel === 0)
+            ) {
+                event.preventDefault();
+                alert(
+                    "Select a branch and payment type, and enter a valid " +
+                    "ticket or parcel amount greater than zero."
+                );
+            }
+        }
+    );
+
+    updateTotal();
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,64 @@
+
+@media (max-width: 992px) {
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+
+    .main-area {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .topbar {
+        padding: 0 20px;
+    }
+
+    .content-area {
+        padding: 20px;
+    }
+
+    .user-info,
+    .profile-arrow {
+        display: none;
+    }
+}
+
+
+@media (max-width: 576px) {
+
+    .content-area {
+        padding: 15px;
+    }
+
+    .topbar {
+        height: 68px;
+    }
+
+    .dashboard-header {
+        display: block;
+    }
+
+    .dashboard-header .btn {
+        margin-top: 15px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .topbar-right {
+        gap: 10px;
+    }
+
+}
+
