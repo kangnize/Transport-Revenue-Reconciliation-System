@@ -473,24 +473,338 @@ def render_operation_page(page_key, title, subtitle):
     )
 
 
+# Replace the existing placeholder `banking()` route in app.py with this.
+# Written for the existing table `banking`:
+#   id, branch_id, banking_amount, banking_date, reference_number,
+#   payment_method, created_by, created_at
+# If your table has a different name, change it in the three queries below.
+# No new imports are needed: date, Decimal, InvalidOperation, IntegrityError,
+# session, flash, redirect, url_for and get_db_connection are already imported.
+
+# While setting this page up, show the real database error on screen.
+# Set to False once banking saves correctly.
+SHOW_DB_ERRORS = True
+
+
+def _empty_banking_context():
+    return {
+        "positions": [],
+        "banking_records": [],
+        "total_sales": Decimal("0.00"),
+        "total_banked": Decimal("0.00"),
+        "outstanding": Decimal("0.00"),
+        "banked_pct": 0,
+        "today": date.today().isoformat(),
+    }
+
+
 @app.route("/banking", methods=["GET", "POST"])
 def banking():
     if not login_required():
         return redirect(url_for("login"))
 
+    allowed_payment_types = {"MPESA", "CASH"}
+
     if request.method == "POST":
-        flash(
-            "Banking form received. Database saving has not "
-            "been implemented yet.",
-            "info",
-        )
+        app.logger.info("Banking POST received: %s", dict(request.form))
+        branch_id = request.form.get("branch_id", "").strip()
+        bank_date_text = request.form.get("bank_date", "").strip()
+        payment_type = request.form.get("payment_type", "").strip()
+        amount_text = request.form.get("amount", "").strip()
+        reference = request.form.get("reference", "").strip()
+
+        try:
+            if not branch_id or not bank_date_text:
+                raise ValueError("Please select a branch and banking date.")
+
+            branch_id = int(branch_id)
+            parsed_date = date.fromisoformat(bank_date_text)
+
+            if parsed_date > date.today():
+                raise ValueError("Banking date cannot be in the future.")
+
+            if payment_type not in allowed_payment_types:
+                raise ValueError("Please select a valid payment type.")
+
+            if not reference:
+                raise ValueError("Enter the bank slip number or M-PESA code.")
+
+            if len(reference) > 100:
+                raise ValueError("The reference can have at most 100 characters.")
+
+            amount = Decimal(amount_text or "0")
+
+            if not amount.is_finite():
+                raise ValueError("Enter a valid amount.")
+
+            if amount <= 0:
+                raise ValueError("The amount banked must be greater than zero.")
+
+            if amount > Decimal("9999999999999.99"):
+                raise ValueError("The entered amount is too large.")
+
+            if amount != amount.quantize(Decimal("0.01")):
+                raise ValueError("The amount can have at most two decimal places.")
+
+        except InvalidOperation:
+            flash("Enter a valid amount.", "danger")
+            return redirect(url_for("banking"))
+
+        except ValueError as error:
+            flash(str(error), "danger")
+            return redirect(url_for("banking"))
+
+        connection = get_db_connection()
+
+        if connection is None:
+            flash("Unable to connect to the database.", "danger")
+            return redirect(url_for("banking"))
+
+        cursor = None
+
+        try:
+            cursor = connection.cursor(dictionary=True)
+
+            cursor.execute(
+                "SELECT id FROM branches WHERE id = %s",
+                (branch_id,),
+            )
+
+            if cursor.fetchone() is None:
+                raise ValueError("The selected branch does not exist.")
+
+            # reference_number is unique across the whole table.
+            cursor.execute("""
+                SELECT k.id, b.branch_name
+                FROM banking AS k
+                INNER JOIN branches AS b ON b.id = k.branch_id
+                WHERE k.reference_number = %s
+                LIMIT 1
+            """, (reference,))
+            existing = cursor.fetchone()
+
+            if existing is not None:
+                raise ValueError(
+                    f"The reference {reference} has already been recorded "
+                    f"(for {existing['branch_name']}). Each reference can "
+                    f"only be used once."
+                )
+
+            cursor.execute("""
+                INSERT INTO banking
+                    (branch_id, banking_amount, banking_date,
+                     reference_number, payment_method, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                branch_id,
+                amount,
+                parsed_date,
+                reference,
+                payment_type,
+                session.get("user_id"),
+            ))
+
+            connection.commit()
+
+            # Tell the user where the branch stands after this deposit.
+            cursor.execute("""
+                SELECT
+                    b.branch_name,
+                    COALESCE((
+                        SELECT SUM(s.total_sales)
+                        FROM sales AS s WHERE s.branch_id = b.id
+                    ), 0) AS sales_total,
+                    COALESCE((
+                        SELECT SUM(k.banking_amount)
+                        FROM banking AS k WHERE k.branch_id = b.id
+                    ), 0) AS banked_total
+                FROM branches AS b
+                WHERE b.id = %s
+            """, (branch_id,))
+            result = cursor.fetchone()
+
+            message = f"Banking saved. Amount: KES {amount:,.2f}."
+            category = "success"
+
+            if result:
+                left = Decimal(result["sales_total"]) - Decimal(result["banked_total"])
+                name = result["branch_name"]
+
+                if left > 0:
+                    message += (
+                        f" {name} still has KES {left:,.2f} to bank."
+                    )
+                elif left == 0:
+                    message += (
+                        f" {name} has banked everything it sold."
+                    )
+                else:
+                    message += (
+                        f" {name} has banked KES {-left:,.2f} more than "
+                        f"its recorded sales. Please check the amounts."
+                    )
+                    category = "warning"
+
+            flash(message, category)
+
+        except ValueError as error:
+            connection.rollback()
+            flash(str(error), "danger")
+
+        except IntegrityError as error:
+            connection.rollback()
+            app.logger.exception("Integrity error saving banking record.")
+
+            if error.errno == 1062:
+                flash(
+                    "This reference has already been recorded. "
+                    "Each reference can only be used once.",
+                    "warning",
+                )
+            else:
+                message = (
+                    "The deposit could not be saved because it conflicts "
+                    "with related records."
+                )
+                if SHOW_DB_ERRORS:
+                    message += f" Details: {error}"
+                flash(message, "danger")
+
+        except Exception as error:
+            connection.rollback()
+            app.logger.exception("Failed to save banking record.")
+            message = "Unable to save banking. Please try again."
+            if SHOW_DB_ERRORS:
+                message += f" Details: {error}"
+            flash(message, "danger")
+
+        finally:
+            if cursor is not None:
+                cursor.close()
+            connection.close()
+
         return redirect(url_for("banking"))
 
-    return render_operation_page(
-        "banking",
-        "Banking Management",
-        "Record revenue deposited or remitted by branches.",
-    )
+    # GET: branch positions (sold vs banked) and deposit history.
+    connection = get_db_connection()
+
+    if connection is None:
+        flash("Unable to connect to the database.", "danger")
+        return render_template("banking/index.html", **_empty_banking_context())
+
+    cursor = None
+    context = _empty_banking_context()
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+
+        # 1) Branches first, so the dropdown always works.
+        cursor.execute("""
+            SELECT id, branch_name
+            FROM branches
+            ORDER BY branch_name ASC
+        """)
+        branch_rows = cursor.fetchall()
+
+        # 2) Sales totals per branch.
+        sales_by_branch = {}
+        try:
+            cursor.execute("""
+                SELECT branch_id, SUM(total_sales) AS total
+                FROM sales
+                GROUP BY branch_id
+            """)
+            for row in cursor.fetchall():
+                sales_by_branch[row["branch_id"]] = Decimal(row["total"] or 0)
+        except Exception:
+            app.logger.exception("Failed to load sales totals for banking.")
+            flash("Sales totals could not be loaded.", "warning")
+
+        # 3) Banked totals and deposit history. A problem here (for example
+        #    a different table name) must not empty the branch list.
+        banked_by_branch = {}
+        banking_records = []
+        try:
+            cursor.execute("""
+                SELECT branch_id, SUM(banking_amount) AS total
+                FROM banking
+                GROUP BY branch_id
+            """)
+            for row in cursor.fetchall():
+                banked_by_branch[row["branch_id"]] = Decimal(row["total"] or 0)
+
+            cursor.execute("""
+                SELECT
+                    k.id,
+                    b.branch_name,
+                    k.banking_date     AS bank_date,
+                    k.payment_method   AS payment_type,
+                    k.banking_amount   AS amount,
+                    k.reference_number AS reference
+                FROM banking AS k
+                INNER JOIN branches AS b ON b.id = k.branch_id
+                ORDER BY k.banking_date DESC, k.id DESC
+            """)
+            banking_records = cursor.fetchall()
+        except Exception as error:
+            app.logger.exception("Failed to load banking records.")
+            message = "Banking records could not be loaded."
+            if SHOW_DB_ERRORS:
+                message += f" Details: {error}"
+            flash(message, "warning")
+
+        positions = []
+        total_sales = Decimal("0.00")
+        total_banked = Decimal("0.00")
+
+        for branch in branch_rows:
+            sales_total = sales_by_branch.get(branch["id"], Decimal("0.00"))
+            banked_total = banked_by_branch.get(branch["id"], Decimal("0.00"))
+            outstanding = sales_total - banked_total
+
+            if outstanding == 0:
+                status = "cleared"
+            elif outstanding > 0:
+                status = "outstanding"
+            else:
+                status = "over"
+
+            positions.append({
+                "id": branch["id"],
+                "branch_name": branch["branch_name"],
+                "sales_total": sales_total,
+                "banked_total": banked_total,
+                "outstanding": outstanding,
+                "status": status,
+            })
+
+            total_sales += sales_total
+            total_banked += banked_total
+
+        banked_pct = (
+            float(total_banked / total_sales * 100) if total_sales > 0 else 0
+        )
+
+        return render_template(
+            "banking/index.html",
+            positions=positions,
+            banking_records=banking_records,
+            total_sales=total_sales,
+            total_banked=total_banked,
+            outstanding=total_sales - total_banked,
+            banked_pct=min(banked_pct, 100),
+            today=date.today().isoformat(),
+        )
+
+    except Exception:
+        app.logger.exception("Failed to load the banking page.")
+        flash("Unable to load the banking page.", "danger")
+        return render_template("banking/index.html", **context)
+
+    finally:
+        if cursor is not None:
+            cursor.close()
+        connection.close()
 
 
 @app.route("/reconciliation", methods=["GET", "POST"])

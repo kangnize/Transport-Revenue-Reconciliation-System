@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Sales Management | TRRS{% endblock %}
@@ -8,253 +7,284 @@
 {% block content %}
 
 <style>
-.sales-card {
-    background: var(--bs-body-bg, #fff);
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.04);
+/* ---------- Tokens (follow Bootstrap light/dark theme) ---------- */
+.sales-page {
+    --s-surface: var(--bs-body-bg, #fff);
+    --s-muted-bg: var(--bs-tertiary-bg, #f4f6f5);
+    --s-text: var(--bs-body-color, #1c2421);
+    --s-subtle: var(--bs-secondary-color, #66736d);
+    --s-line: var(--bs-border-color, #e2e8e5);
+    --s-accent: #0f7a5c;
+    --s-accent-strong: #0b5f47;
+    --s-accent-soft: rgba(15,122,92,.12);
+    --s-ticket: #0f7a5c;
+    --s-parcel: #d98a0b;
+    --s-parcel-soft: rgba(217,138,11,.14);
+    --s-danger: #c2410c;
+    color: var(--s-text);
+    font-variant-numeric: tabular-nums;
+}
+.sales-page * { box-sizing: border-box; }
+
+/* ---------- Hero total ---------- */
+.sales-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px 40px;
+    align-items: end;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    border-radius: 20px;
+    background: var(--s-accent-strong);
+    color: #fff;
+}
+.sales-hero .label { font-size: 14px; opacity: .8; margin-bottom: 6px; }
+.sales-hero .amount {
+    font-size: clamp(30px, 5vw, 46px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+}
+.sales-hero .amount small { font-size: .45em; font-weight: 500; opacity: .75; margin-right: 8px; letter-spacing: 0; }
+.sales-split { min-width: 260px; }
+.split-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 99px;
     overflow: hidden;
+    background: rgba(255,255,255,.18);
+}
+.split-bar span { display: block; height: 100%; transition: width .5s ease; }
+.split-bar .t { background: #fff; }
+.split-bar .p { background: #f6b53f; }
+.split-legend { display: flex; justify-content: space-between; gap: 18px; margin-top: 12px; font-size: 13px; }
+.split-legend b { display: block; font-size: 16px; font-weight: 650; }
+.split-legend i {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px;
+}
+
+/* ---------- Layout ---------- */
+.sales-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
     margin-bottom: 24px;
 }
-.sales-card-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #e9ecef;
+.sales-card {
+    background: var(--s-surface);
+    border: 1px solid var(--s-line);
+    border-radius: 20px;
+    overflow: hidden;
 }
-.sales-card-header h5 {
-    font-size: 17px;
-    font-weight: 700;
-    margin: 0 0 5px;
+.sales-card-header { padding: 24px 28px 0; }
+.sales-card-header h5 { font-size: 18px; font-weight: 650; margin: 0 0 4px; }
+.sales-card-header p { color: var(--s-subtle); font-size: 14px; margin: 0; }
+.sales-form-body { padding: 24px 28px 28px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 20px; }
+.sales-field { min-width: 0; }
+.sales-field.full { grid-column: 1 / -1; }
+.sales-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.sales-field small, .branch-search-status {
+    display: block; margin-top: 6px; color: var(--s-subtle); font-size: 12.5px;
 }
-.sales-card-header p {
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 13px;
-    margin: 0;
-}
-.sales-form-body { padding: 24px; }
-.sales-field { margin-bottom: 20px; }
-.sales-label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
+
 .sales-input, .sales-search {
     width: 100%;
-    min-height: 44px;
-    border: 1px solid #d8dee8;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 14px;
-    background: var(--bs-body-bg, #fff);
-    color: var(--bs-body-color, #212529);
+    min-height: 48px;
+    border: 1px solid var(--s-line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 15px;
+    background: var(--s-surface);
+    color: var(--s-text);
+    transition: border-color .15s, box-shadow .15s;
 }
 .sales-input:focus, .sales-search:focus {
     outline: none;
-    border-color: #3768d4;
-    box-shadow: 0 0 0 3px rgba(55,104,212,.12);
+    border-color: var(--s-accent);
+    box-shadow: 0 0 0 4px var(--s-accent-soft);
 }
-.sales-field small {
-    display: block;
-    margin-top: 6px;
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 12px;
+
+/* Money inputs with KES prefix */
+.money { position: relative; }
+.money::before {
+    content: "KES";
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 650; color: var(--s-subtle); pointer-events: none;
 }
-.branch-search-box { position: relative; }
-.branch-search-box .sales-input { padding-right: 36px; }
-.branch-search-status {
-    margin-top: 6px;
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 12px;
+.money .sales-input { padding-left: 52px; font-size: 18px; font-weight: 600; }
+
+/* Payment segmented control (radios, still posts payment_type) */
+.segmented {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    padding: 4px; border-radius: 14px; background: var(--s-muted-bg);
+    border: 1px solid var(--s-line);
 }
-.sales-summary {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    background: var(--bs-tertiary-bg, #f5f8ff);
-    border: 1px solid #e0e8f7;
-    border-radius: 10px;
-    padding: 18px 20px;
-    margin-bottom: 22px;
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented label {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 40px; margin: 0; border-radius: 10px; cursor: pointer;
+    font-size: 14px; font-weight: 600; color: var(--s-subtle);
+    transition: background .15s, color .15s;
 }
-.sales-summary-label {
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 13px;
+.segmented input:checked + label {
+    background: var(--s-surface); color: var(--s-accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
 }
-.sales-total {
-    color: #2458a6;
-    font-size: 25px;
-    font-weight: 750;
+.segmented input:focus-visible + label { outline: 3px solid var(--s-accent-soft); outline-offset: 1px; }
+
+/* ---------- Live summary ---------- */
+.sales-aside { position: sticky; top: 16px; }
+.summary-body { padding: 24px 28px 28px; }
+.summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; font-size: 14px; border-bottom: 1px dashed var(--s-line);
 }
+.summary-row span:first-child { color: var(--s-subtle); }
+.summary-row b { font-weight: 600; }
+.summary-total { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 0 20px; }
+.summary-total span:first-child { font-weight: 600; }
+.sales-total { font-size: 28px; font-weight: 700; color: var(--s-accent); letter-spacing: -.01em; }
+
 .sales-btn {
-    border: none;
-    background: #2458a6;
-    color: white;
-    padding: 11px 20px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
+    width: 100%; min-height: 50px; border: none; border-radius: 14px;
+    background: var(--s-accent); color: #fff; font-size: 15px; font-weight: 650;
+    cursor: pointer; transition: background .15s, transform .1s;
 }
-.sales-btn:hover { background: #194782; }
-.sales-btn:disabled {
-    opacity: .65;
-    cursor: not-allowed;
+.sales-btn:hover { background: var(--s-accent-strong); }
+.sales-btn:active { transform: scale(.985); }
+.sales-btn:focus-visible { outline: 3px solid var(--s-accent-soft); outline-offset: 2px; }
+.sales-btn:disabled { opacity: .6; cursor: not-allowed; }
+.form-error {
+    display: none; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px;
+    font-size: 13px; color: var(--s-danger); background: rgba(194,65,12,.1);
 }
-.sales-search-wrap {
-    padding: 18px 24px;
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    border-bottom: 1px solid #e9ecef;
+.form-error.show { display: block; }
+
+/* ---------- History ---------- */
+.history-tools {
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;
+    padding: 20px 28px;
 }
-.sales-search { max-width: 430px; }
-.sales-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 0;
+.sales-search { max-width: 380px; }
+.filter-chips { display: flex; gap: 6px; }
+.chip {
+    border: 1px solid var(--s-line); background: transparent; color: var(--s-subtle);
+    padding: 8px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+.chip:hover { color: var(--s-text); }
+.chip.active { background: var(--s-text); border-color: var(--s-text); color: var(--s-surface); }
+
+.table-responsive { overflow-x: auto; }
+.sales-table { width: 100%; border-collapse: collapse; margin: 0; }
 .sales-table th {
-    padding: 14px 20px;
-    text-align: left;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--bs-secondary-color, #6c757d);
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    border-bottom: 1px solid #e9ecef;
-    white-space: nowrap;
+    padding: 12px 28px; text-align: left; font-size: 13px; font-weight: 600;
+    color: var(--s-subtle); background: var(--s-muted-bg); white-space: nowrap;
+    border-top: 1px solid var(--s-line); border-bottom: 1px solid var(--s-line);
 }
 .sales-table td {
-    padding: 14px 20px;
-    font-size: 13px;
-    border-bottom: 1px solid #edf0f4;
-    white-space: nowrap;
+    padding: 16px 28px; font-size: 14px; white-space: nowrap;
+    border-bottom: 1px solid var(--s-line);
 }
-.sales-table tbody tr:hover {
-    background: var(--bs-tertiary-bg, #f8faff);
-}
+.sales-table th.num, .sales-table td.num { text-align: right; }
+.sales-table td.num { font-weight: 650; }
+.sales-table tbody tr:last-child td { border-bottom: none; }
+.sales-table tbody tr:hover { background: var(--s-muted-bg); }
+.row-idx { color: var(--s-subtle); width: 1%; }
+.branch-name { font-weight: 600; }
+
 .sale-type {
-    display: inline-block;
-    border-radius: 20px;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 700;
+    display: inline-flex; align-items: center; gap: 7px;
+    border-radius: 99px; padding: 5px 12px 5px 10px; font-size: 12.5px; font-weight: 650;
+    background: var(--s-muted-bg);
 }
-.ticket-type { background: #eaf2ff; color: #2458a6; }
-.parcel-type { background: #e6f7ef; color: #18794e; }
-.payment-type {
-    color: var(--bs-body-color, #343a40);
-    font-weight: 500;
-}
-.sales-empty {
-    display: none;
-    text-align: center;
-    padding: 30px 15px;
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 13px;
-}
+.sale-type::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ticket-type { background: var(--s-accent-soft); color: var(--s-ticket); }
+.parcel-type { background: var(--s-parcel-soft); color: var(--s-parcel); }
+.payment-type { color: var(--s-subtle); }
+
+.sales-empty { display: none; text-align: center; padding: 40px 16px; color: var(--s-subtle); font-size: 14px; }
 .sales-footer {
-    padding: 14px 24px;
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    font-size: 12px;
-    color: var(--bs-secondary-color, #6c757d);
+    padding: 14px 28px; font-size: 13px; color: var(--s-subtle);
+    border-top: 1px solid var(--s-line); background: var(--s-muted-bg);
 }
-.sales-total-card {
-    padding: 20px 24px;
-    border-radius: 14px;
-    border: 1px solid #dce7fa;
-    background: var(--bs-body-bg, #fff);
-    margin-bottom: 24px;
-}
-.sales-total-card .label {
-    font-size: 12px;
-    color: var(--bs-secondary-color, #6c757d);
-    margin-bottom: 7px;
-}
-.sales-total-card .amount {
-    font-size: 26px;
-    font-weight: 750;
-    color: #2458a6;
-}
-.sales-total-card .note {
-    font-size: 12px;
-    color: var(--bs-secondary-color, #6c757d);
-    margin-top: 5px;
+
+@media (max-width: 991px) {
+    .sales-grid { grid-template-columns: 1fr; }
+    .sales-aside { position: static; }
+    .sales-hero { grid-template-columns: 1fr; }
+    .sales-split { min-width: 0; }
 }
 @media (max-width: 576px) {
-    .sales-form-body, .sales-card-header { padding: 17px; }
-    .sales-table th, .sales-table td { padding: 12px; }
-    .sales-search-wrap, .sales-footer { padding: 15px; }
+    .sales-hero { padding: 22px 20px; border-radius: 16px; }
+    .sales-card-header, .sales-form-body, .summary-body, .history-tools { padding-left: 18px; padding-right: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .sales-table th, .sales-table td, .sales-footer { padding-left: 16px; padding-right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .split-bar span, .sales-btn, .sales-input { transition: none; }
 }
 </style>
 
+<div class="sales-page">
+
 <!-- Overall recorded revenue -->
-<div class="sales-total-card">
-    <div class="label">Total Recorded Sales</div>
-    <div class="amount">
-        KES {{ "{:,.2f}".format(total_sales|float) }}
+<section class="sales-hero" aria-label="Total recorded sales">
+    <div>
+        <div class="label">Total recorded sales</div>
+        <div class="amount"><small>KES</small>{{ "{:,.2f}".format(total_sales|float) }}</div>
     </div>
-    <div class="note">
-        All sales records currently stored in the database.
+    <div class="sales-split" id="salesSplit">
+        <div class="split-bar" role="img" aria-label="Ticket versus parcel share of revenue">
+            <span class="t" id="splitTicket" style="width:0%"></span>
+            <span class="p" id="splitParcel" style="width:0%"></span>
+        </div>
+        <div class="split-legend">
+            <div><i style="background:#fff"></i>Tickets<b id="splitTicketAmt">KES 0.00</b></div>
+            <div><i style="background:#f6b53f"></i>Parcels<b id="splitParcelAmt">KES 0.00</b></div>
+        </div>
     </div>
-</div>
+</section>
 
-<!-- Record sales -->
-<div class="sales-card">
-    <div class="sales-card-header">
-        <h5>Record Branch Sales</h5>
-        <p>Enter consolidated ticket and parcel revenue for a branch.</p>
-    </div>
+<form method="POST" action="{{ url_for('sales') }}" id="salesForm" novalidate>
+<div class="sales-grid">
 
-    <div class="sales-form-body">
-        <form method="POST" action="{{ url_for('sales') }}" id="salesForm">
+    <!-- Record sales -->
+    <div class="sales-card">
+        <div class="sales-card-header">
+            <h5>Record branch sales</h5>
+            <p>Enter the ticket and parcel revenue a branch collected on one day.</p>
+        </div>
 
-            <div class="row">
-                <div class="col-md-6 sales-field">
-                    <label class="sales-label" for="branchSearch">
-                        Search Branch *
-                    </label>
+        <div class="sales-form-body">
+            <div class="form-grid">
 
-                    <div class="branch-search-box">
-                        <input
-                            class="sales-input"
-                            type="search"
-                            id="branchSearch"
-                            placeholder="Type a branch name..."
-                            autocomplete="off"
-                            aria-label="Search branch names"
-                        >
-                    </div>
-
-                    <div class="branch-search-status" id="branchSearchStatus">
+                <div class="sales-field full">
+                    <label class="sales-label" for="branchSearch">Branch *</label>
+                    <input
+                        class="sales-input"
+                        type="search"
+                        id="branchSearch"
+                        placeholder="Type to filter branches"
+                        autocomplete="off"
+                        aria-label="Search branch names"
+                    >
+                    <div class="branch-search-status" id="branchSearchStatus" aria-live="polite">
                         {{ branches|length }} branches available
                     </div>
 
-                    <label class="sales-label mt-3" for="branch_id">
-                        Selected Branch
-                    </label>
-
-                    <select
-                        class="sales-input"
-                        name="branch_id"
-                        id="branch_id"
-                        required
-                    >
+                    <select class="sales-input mt-2" name="branch_id" id="branch_id" required aria-label="Selected branch">
                         <option value="">Select a branch</option>
                         {% for branch in branches %}
-                        <option value="{{ branch.id }}">
-                            {{ branch.branch_name }}
-                        </option>
+                        <option value="{{ branch.id }}">{{ branch.branch_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div class="col-md-6 sales-field">
-                    <label class="sales-label" for="sale_date">
-                        Sales Date *
-                    </label>
+                <div class="sales-field">
+                    <label class="sales-label" for="sale_date">Sales date *</label>
                     <input
                         class="sales-input"
                         type="date"
@@ -264,102 +294,106 @@
                         max="{{ today }}"
                         required
                     >
-                    <small>Date the branch generated the revenue.</small>
-
-                    
-                <label class="sales-label mt-3" for="payment_type">
-                    Payment Type *
-                </label>
-
-                <select
-                    class="sales-input"
-                    id="payment_type"
-                    name="payment_type"
-                    required
-                >
-                    <option value="">Select payment type</option>
-                    <option value="MPESA">M-PESA</option>
-                    <option value="CASH">CASH</option>
-                </select>
-
-                <small>Select M-PESA or CASH.</small>
-
+                    <small>The day the branch generated the revenue.</small>
                 </div>
 
-                <div class="col-md-6 sales-field">
-                    <label class="sales-label" for="ticket_sales">
-                        Ticket Revenue (KES)
-                    </label>
-                    <input
-                        class="sales-input revenue-input"
-                        type="number"
-                        id="ticket_sales"
-                        name="ticket_sales"
-                        min="0"
-                        max="9999999999999.99"
-                        step="0.01"
-                        value="0.00"
-                        required
-                    >
-                    <small>Enter ticket revenue, or zero if none.</small>
+                <div class="sales-field">
+                    <span class="sales-label" id="paymentLabel">Payment type *</span>
+                    <div class="segmented" role="radiogroup" aria-labelledby="paymentLabel">
+                        <input type="radio" name="payment_type" id="pay_mpesa" value="MPESA" required>
+                        <label for="pay_mpesa">M-PESA</label>
+                        <input type="radio" name="payment_type" id="pay_cash" value="CASH">
+                        <label for="pay_cash">Cash</label>
+                    </div>
+                    <small>How the revenue was collected.</small>
                 </div>
 
-                <div class="col-md-6 sales-field">
-                    <label class="sales-label" for="parcel_sales">
-                        Parcel Revenue (KES)
-                    </label>
-                    <input
-                        class="sales-input revenue-input"
-                        type="number"
-                        id="parcel_sales"
-                        name="parcel_sales"
-                        min="0"
-                        max="9999999999999.99"
-                        step="0.01"
-                        value="0.00"
-                        required
-                    >
-                    <small>Enter parcel revenue, or zero if none.</small>
+                <div class="sales-field">
+                    <label class="sales-label" for="ticket_sales">Ticket revenue</label>
+                    <div class="money">
+                        <input
+                            class="sales-input revenue-input"
+                            type="number"
+                            id="ticket_sales"
+                            name="ticket_sales"
+                            min="0"
+                            max="9999999999999.99"
+                            step="0.01"
+                            value="0.00"
+                            inputmode="decimal"
+                            required
+                        >
+                    </div>
+                    <small>Enter 0 if there were no ticket sales.</small>
+                </div>
+
+                <div class="sales-field">
+                    <label class="sales-label" for="parcel_sales">Parcel revenue</label>
+                    <div class="money">
+                        <input
+                            class="sales-input revenue-input"
+                            type="number"
+                            id="parcel_sales"
+                            name="parcel_sales"
+                            min="0"
+                            max="9999999999999.99"
+                            step="0.01"
+                            value="0.00"
+                            inputmode="decimal"
+                            required
+                        >
+                    </div>
+                    <small>Enter 0 if there were no parcel sales.</small>
                 </div>
             </div>
-
-            <div class="sales-summary">
-                <div>
-                    <div class="sales-summary-label">
-                        Combined Total Sales
-                    </div>
-                    <div style="font-size:12px;color:var(--bs-secondary-color,#6c757d)">
-                        Ticket revenue + parcel revenue
-                    </div>
-                </div>
-
-                <div class="sales-total">
-                    KES <span id="totalRevenue">0.00</span>
-                </div>
-            </div>
-
-            <button type="submit" class="sales-btn" id="saveSalesBtn">
-                Save Sales Records
-            </button>
-        </form>
+        </div>
     </div>
+
+    <!-- Live summary -->
+    <aside class="sales-card sales-aside" aria-label="Entry summary">
+        <div class="sales-card-header">
+            <h5>Entry summary</h5>
+            <p>Check the figures before you save.</p>
+        </div>
+        <div class="summary-body">
+            <div class="summary-row"><span>Branch</span><b id="sumBranch">Not selected</b></div>
+            <div class="summary-row"><span>Payment</span><b id="sumPayment">Not selected</b></div>
+            <div class="summary-row"><span>Tickets</span><b id="sumTicket">KES 0.00</b></div>
+            <div class="summary-row"><span>Parcels</span><b id="sumParcel">KES 0.00</b></div>
+
+            <div class="summary-total">
+                <span>Total</span>
+                <span class="sales-total">KES <span id="totalRevenue">0.00</span></span>
+            </div>
+
+            <div class="form-error" id="formError" role="alert"></div>
+
+            <button type="submit" class="sales-btn" id="saveSalesBtn">Save sales</button>
+        </div>
+    </aside>
 </div>
+</form>
 
 <!-- Sales history -->
 <div class="sales-card">
     <div class="sales-card-header">
-        <h5>Sales Records</h5>
+        <h5>Sales records</h5>
         <p>Search and review previously recorded revenue.</p>
     </div>
 
-    <div class="sales-search-wrap">
+    <div class="history-tools">
         <input
             type="search"
             id="salesSearch"
             class="sales-search"
-            placeholder="Search branch, sale type, payment or date..."
+            placeholder="Search by branch, payment or date"
             aria-label="Search sales records"
         >
+        <div class="filter-chips" role="group" aria-label="Filter by sale type">
+            <button type="button" class="chip active" data-filter="">All</button>
+            <button type="button" class="chip" data-filter="ticket">Tickets</button>
+            <button type="button" class="chip" data-filter="parcel">Parcels</button>
+        </div>
     </div>
 
     <div class="table-responsive">
@@ -368,38 +402,32 @@
                 <tr>
                     <th>#</th>
                     <th>Branch</th>
-                    <th>Sale Type</th>
-                    <th>Payment Type</th>
-                    <th>Sales Date</th>
-                    <th>Amount (KES)</th>
+                    <th>Type</th>
+                    <th>Payment</th>
+                    <th>Date</th>
+                    <th class="num">Amount (KES)</th>
                 </tr>
             </thead>
 
             <tbody id="salesTableBody">
                 {% for record in sales_records %}
-                <tr class="sale-row">
-                    <td>{{ loop.index }}</td>
-                    <td>{{ record.branch_name }}</td>
+                <tr class="sale-row"
+                    data-type="{{ record.sale_type|lower }}"
+                    data-amount="{{ record.total_sales|float }}">
+                    <td class="row-idx">{{ loop.index }}</td>
+                    <td class="branch-name">{{ record.branch_name }}</td>
                     <td>
                         {% if record.sale_type|lower == 'ticket' %}
                             <span class="sale-type ticket-type">Ticket</span>
                         {% elif record.sale_type|lower == 'parcel' %}
                             <span class="sale-type parcel-type">Parcel</span>
                         {% else %}
-                            <span class="sale-type">
-                                {{ record.sale_type }}
-                            </span>
+                            <span class="sale-type">{{ record.sale_type }}</span>
                         {% endif %}
                     </td>
-                    <td class="payment-type">
-                        {{ record.payment_type or 'Unspecified' }}
-                    </td>
-                    <td>
-                        {{ record.sale_date.strftime('%d %b %Y') }}
-                    </td>
-                    <td>
-                        {{ "{:,.2f}".format(record.total_sales|float) }}
-                    </td>
+                    <td class="payment-type">{{ record.payment_type or 'Unspecified' }}</td>
+                    <td>{{ record.sale_date.strftime('%d %b %Y') }}</td>
+                    <td class="num">{{ "{:,.2f}".format(record.total_sales|float) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -407,12 +435,14 @@
     </div>
 
     <div class="sales-empty" id="salesEmpty">
-        No sales records match your search.
+        No records match. Try a different search or filter.
     </div>
 
-    <div class="sales-footer" id="salesFooter">
+    <div class="sales-footer" id="salesFooter" aria-live="polite">
         Showing {{ sales_records|length }} sales records
     </div>
+</div>
+
 </div>
 
 <script>
@@ -430,40 +460,69 @@ document.addEventListener("DOMContentLoaded", function () {
     const salesTable = document.getElementById("salesTable");
     const salesEmpty = document.getElementById("salesEmpty");
     const salesFooter = document.getElementById("salesFooter");
+    const chips = Array.from(document.querySelectorAll(".chip"));
 
+    const formError = document.getElementById("formError");
     const originalBranchOptions = Array.from(branchSelect.options).slice(1);
+    let activeFilter = "";
 
-    // Calculate the combined ticket and parcel revenue.
+    const fmt = n => n.toLocaleString("en-KE", {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    const paymentValue = () => {
+        const checked = document.querySelector('input[name="payment_type"]:checked');
+        return checked ? checked.value : "";
+    };
+
+    // Live total and entry summary.
     function updateTotal() {
         const ticket = Number(ticketInput.value) || 0;
         const parcel = Number(parcelInput.value) || 0;
+        const option = branchSelect.options[branchSelect.selectedIndex];
+        const payment = paymentValue();
 
-        totalDisplay.textContent = (ticket + parcel).toLocaleString(
-            "en-KE",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }
-        );
+        totalDisplay.textContent = fmt(ticket + parcel);
+        document.getElementById("sumTicket").textContent = "KES " + fmt(ticket);
+        document.getElementById("sumParcel").textContent = "KES " + fmt(parcel);
+        document.getElementById("sumBranch").textContent =
+            branchSelect.value ? option.textContent.trim() : "Not selected";
+        document.getElementById("sumPayment").textContent =
+            payment === "MPESA" ? "M-PESA" : payment === "CASH" ? "Cash" : "Not selected";
     }
 
-    ticketInput.addEventListener("input", updateTotal);
-    parcelInput.addEventListener("input", updateTotal);
+    [ticketInput, parcelInput].forEach(el => el.addEventListener("input", updateTotal));
+    branchSelect.addEventListener("change", updateTotal);
+    document.querySelectorAll('input[name="payment_type"]').forEach(
+        el => el.addEventListener("change", updateTotal)
+    );
 
-    // Search branches without reloading the page.
+    // Ticket vs parcel split in the header, from the saved records.
+    (function renderSplit() {
+        let ticket = 0, parcel = 0;
+        salesRows.forEach(row => {
+            const amount = Number(row.dataset.amount) || 0;
+            if (row.dataset.type === "ticket") ticket += amount;
+            else if (row.dataset.type === "parcel") parcel += amount;
+        });
+        const sum = ticket + parcel;
+        document.getElementById("splitTicket").style.width = sum ? (ticket / sum * 100) + "%" : "0%";
+        document.getElementById("splitParcel").style.width = sum ? (parcel / sum * 100) + "%" : "0%";
+        document.getElementById("splitTicketAmt").textContent = "KES " + fmt(ticket);
+        document.getElementById("splitParcelAmt").textContent = "KES " + fmt(parcel);
+    })();
+
+    // Filter branches without reloading the page.
     branchSearch.addEventListener("input", function () {
         const term = branchSearch.value.trim().toLowerCase();
         const previousSelection = branchSelect.value;
 
         branchSelect.innerHTML = "";
-
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = "Select a branch";
         branchSelect.appendChild(placeholder);
 
         let matches = 0;
-
         originalBranchOptions.forEach(function (option) {
             if (option.textContent.trim().toLowerCase().includes(term)) {
                 branchSelect.appendChild(option.cloneNode(true));
@@ -471,62 +530,59 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        if (
-            previousSelection &&
-            Array.from(branchSelect.options).some(
-                option => option.value === previousSelection
-            )
-        ) {
+        if (previousSelection && Array.from(branchSelect.options).some(o => o.value === previousSelection)) {
             branchSelect.value = previousSelection;
         }
 
         branchStatus.textContent =
             matches + (matches === 1 ? " matching branch" : " matching branches");
+        updateTotal();
     });
 
-    // Search saved sales records.
-    salesSearch.addEventListener("input", function () {
+    // Search and filter saved sales records.
+    function applyHistoryFilter() {
         const term = salesSearch.value.trim().toLowerCase();
         let visible = 0;
 
         salesRows.forEach(function (row) {
-            const matches = row.textContent.toLowerCase().includes(term);
-            row.style.display = matches ? "" : "none";
-
-            if (matches) visible++;
+            const matchesText = row.textContent.toLowerCase().includes(term);
+            const matchesType = !activeFilter || row.dataset.type === activeFilter;
+            const show = matchesText && matchesType;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
         });
 
         salesTable.style.display = visible > 0 ? "" : "none";
         salesEmpty.style.display = visible > 0 ? "none" : "block";
-
         salesFooter.textContent =
             "Showing " + visible + " of " + salesRows.length + " sales records";
+    }
+
+    salesSearch.addEventListener("input", applyHistoryFilter);
+    chips.forEach(chip => chip.addEventListener("click", function () {
+        chips.forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        activeFilter = chip.dataset.filter;
+        applyHistoryFilter();
+    }));
+
+    // Prevent invalid submissions, with an inline message instead of alert().
+    document.getElementById("salesForm").addEventListener("submit", function (event) {
+        const ticket = Number(ticketInput.value);
+        const parcel = Number(parcelInput.value);
+        let message = "";
+
+        if (!branchSelect.value) message = "Select a branch.";
+        else if (!paymentValue()) message = "Choose M-PESA or Cash.";
+        else if (!Number.isFinite(ticket) || !Number.isFinite(parcel) || ticket < 0 || parcel < 0)
+            message = "Amounts can't be negative.";
+        else if (ticket === 0 && parcel === 0)
+            message = "Enter a ticket or parcel amount greater than zero.";
+
+        formError.textContent = message;
+        formError.classList.toggle("show", Boolean(message));
+        if (message) event.preventDefault();
     });
-
-    // Prevent invalid submissions in the browser.
-    document.getElementById("salesForm").addEventListener(
-        "submit",
-        function (event) {
-            const ticket = Number(ticketInput.value);
-            const parcel = Number(parcelInput.value);
-
-            if (
-                !branchSelect.value ||
-                !document.getElementById("payment_type").value ||
-                !Number.isFinite(ticket) ||
-                !Number.isFinite(parcel) ||
-                ticket < 0 ||
-                parcel < 0 ||
-                (ticket === 0 && parcel === 0)
-            ) {
-                event.preventDefault();
-                alert(
-                    "Select a branch and payment type, and enter a valid " +
-                    "ticket or parcel amount greater than zero."
-                );
-            }
-        }
-    );
 
     updateTotal();
 });

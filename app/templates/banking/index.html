@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+
+{% block title %}Banking Management | TRRS{% endblock %}
+{% block page_heading %}Banking Management{% endblock %}
+{% block page_subtitle %}Record revenue deposited or remitted by branches{% endblock %}
+
+{% block content %}
+
+<style>
+.bank-page {
+    --s-surface: var(--bs-body-bg, #fff);
+    --s-muted-bg: var(--bs-tertiary-bg, #f4f6f5);
+    --s-text: var(--bs-body-color, #1c2421);
+    --s-subtle: var(--bs-secondary-color, #66736d);
+    --s-line: var(--bs-border-color, #e2e8e5);
+    --s-accent: #0f7a5c;
+    --s-accent-strong: #0b5f47;
+    --s-accent-soft: rgba(15,122,92,.12);
+    --s-warn: #b45309;
+    --s-warn-soft: rgba(217,138,11,.15);
+    --s-over: #1d4ed8;
+    --s-over-soft: rgba(29,78,216,.12);
+    --s-danger: #c2410c;
+    color: var(--s-text);
+    font-variant-numeric: tabular-nums;
+}
+.bank-page * { box-sizing: border-box; }
+
+/* Hero: sold -> banked -> outstanding */
+.bank-hero {
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    border-radius: 20px;
+    background: var(--s-accent-strong);
+    color: #fff;
+}
+.hero-figures { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
+.hero-figures .label { font-size: 14px; opacity: .8; margin-bottom: 6px; }
+.hero-figures .amount { font-size: clamp(20px, 3vw, 32px); font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
+.hero-figures .amount small { font-size: .5em; font-weight: 500; opacity: .75; margin-right: 6px; }
+.hero-figures .primary .amount { font-size: clamp(28px, 4.5vw, 44px); }
+.hero-progress { margin-top: 24px; }
+.progress-track { height: 10px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.progress-track span { display: block; height: 100%; background: #fff; border-radius: 99px; transition: width .5s ease; }
+.progress-note { margin-top: 10px; font-size: 13px; opacity: .85; }
+
+/* Layout */
+.bank-grid { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; align-items: start; margin-bottom: 24px; }
+.bank-card { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 20px; overflow: hidden; margin-bottom: 24px; }
+.bank-grid .bank-card { margin-bottom: 0; }
+.bank-card-header { padding: 24px 28px 0; }
+.bank-card-header h5 { font-size: 18px; font-weight: 650; margin: 0 0 4px; }
+.bank-card-header p { color: var(--s-subtle); font-size: 14px; margin: 0; }
+.bank-body { padding: 24px 28px 28px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bank-field { min-width: 0; }
+.bank-field.full { grid-column: 1 / -1; }
+.bank-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.bank-field small, .branch-search-status { display: block; margin-top: 6px; color: var(--s-subtle); font-size: 12.5px; }
+
+.bank-input, .bank-search {
+    width: 100%; min-height: 48px; border: 1px solid var(--s-line); border-radius: 12px;
+    padding: 10px 14px; font-size: 15px; background: var(--s-surface); color: var(--s-text);
+    transition: border-color .15s, box-shadow .15s;
+}
+.bank-input:focus, .bank-search:focus { outline: none; border-color: var(--s-accent); box-shadow: 0 0 0 4px var(--s-accent-soft); }
+
+.money { position: relative; }
+.money::before {
+    content: "KES"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 650; color: var(--s-subtle); pointer-events: none;
+}
+.money .bank-input { padding-left: 52px; font-size: 18px; font-weight: 600; }
+
+.segmented {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+    border-radius: 14px; background: var(--s-muted-bg); border: 1px solid var(--s-line);
+}
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented label {
+    display: flex; align-items: center; justify-content: center; min-height: 40px; margin: 0;
+    border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--s-subtle);
+    transition: background .15s, color .15s;
+}
+.segmented input:checked + label { background: var(--s-surface); color: var(--s-accent); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.segmented input:focus-visible + label { outline: 3px solid var(--s-accent-soft); outline-offset: 1px; }
+
+/* Branch position panel */
+.bank-aside { position: sticky; top: 16px; }
+.summary-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 12px 0; font-size: 14px; border-bottom: 1px dashed var(--s-line);
+}
+.summary-row span:first-child { color: var(--s-subtle); }
+.summary-row b { font-weight: 600; text-align: right; }
+.summary-total { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 0 8px; }
+.summary-total span:first-child { font-weight: 600; }
+.bank-total { font-size: 28px; font-weight: 700; color: var(--s-accent); letter-spacing: -.01em; }
+.after-note { min-height: 40px; margin: 0 0 14px; font-size: 13px; color: var(--s-subtle); }
+.after-note.warn { color: var(--s-warn); }
+.use-outstanding {
+    display: none; margin-top: 8px; padding: 0; border: none; background: none;
+    color: var(--s-accent); font-size: 13px; font-weight: 650; cursor: pointer; text-decoration: underline;
+}
+.use-outstanding.show { display: inline-block; }
+
+.bank-btn {
+    width: 100%; min-height: 50px; border: none; border-radius: 14px; background: var(--s-accent);
+    color: #fff; font-size: 15px; font-weight: 650; cursor: pointer; transition: background .15s, transform .1s;
+}
+.bank-btn:hover { background: var(--s-accent-strong); }
+.bank-btn:active { transform: scale(.985); }
+.bank-btn:focus-visible { outline: 3px solid var(--s-accent-soft); outline-offset: 2px; }
+.form-error { display: none; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: var(--s-danger); background: rgba(194,65,12,.1); }
+.form-error.show { display: block; }
+
+/* Tables */
+.tools { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; padding: 20px 28px; }
+.bank-search { max-width: 380px; }
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--s-line); background: transparent; color: var(--s-subtle); padding: 8px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip:hover { color: var(--s-text); }
+.chip.active { background: var(--s-text); border-color: var(--s-text); color: var(--s-surface); }
+
+.table-responsive { overflow-x: auto; }
+.bank-table { width: 100%; border-collapse: collapse; margin: 0; }
+.bank-table th {
+    padding: 12px 28px; text-align: left; font-size: 13px; font-weight: 600; color: var(--s-subtle);
+    background: var(--s-muted-bg); white-space: nowrap; border-top: 1px solid var(--s-line); border-bottom: 1px solid var(--s-line);
+}
+.bank-table td { padding: 16px 28px; font-size: 14px; white-space: nowrap; border-bottom: 1px solid var(--s-line); }
+.bank-table th.num, .bank-table td.num { text-align: right; }
+.bank-table td.num { font-weight: 600; }
+.bank-table tbody tr:last-child td { border-bottom: none; }
+.bank-table tbody tr:hover { background: var(--s-muted-bg); }
+.branch-name { font-weight: 600; }
+.muted { color: var(--s-subtle); }
+.ref { font-weight: 600; letter-spacing: .02em; }
+
+.badge-pill { display: inline-flex; align-items: center; gap: 7px; border-radius: 99px; padding: 5px 12px 5px 10px; font-size: 12.5px; font-weight: 650; background: var(--s-muted-bg); }
+.badge-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-cleared { background: var(--s-accent-soft); color: var(--s-accent); }
+.st-outstanding { background: var(--s-warn-soft); color: var(--s-warn); }
+.st-over { background: var(--s-over-soft); color: var(--s-over); }
+
+.mini-bar { width: 96px; height: 6px; border-radius: 99px; background: var(--s-muted-bg); overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 10px; border: 1px solid var(--s-line); }
+.mini-bar span { display: block; height: 100%; background: var(--s-accent); }
+
+.bank-empty { display: none; text-align: center; padding: 40px 16px; color: var(--s-subtle); font-size: 14px; }
+.bank-empty.static { display: block; }
+.bank-footer { padding: 14px 28px; font-size: 13px; color: var(--s-subtle); border-top: 1px solid var(--s-line); background: var(--s-muted-bg); }
+
+@media (max-width: 991px) {
+    .bank-grid { grid-template-columns: 1fr; }
+    .bank-aside { position: static; }
+}
+@media (max-width: 640px) {
+    .bank-hero { padding: 22px 20px; border-radius: 16px; }
+    .hero-figures { grid-template-columns: 1fr; gap: 16px; }
+    .bank-card-header, .bank-body, .tools { padding-left: 18px; padding-right: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .bank-table th, .bank-table td, .bank-footer { padding-left: 16px; padding-right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .progress-track span, .bank-btn, .bank-input { transition: none; } }
+</style>
+
+<div class="bank-page">
+
+<!-- Overview: sold, banked, still to bank -->
+<section class="bank-hero" aria-label="Banking overview">
+    <div class="hero-figures">
+        <div class="primary">
+            <div class="label">Total banked</div>
+            <div class="amount"><small>KES</small>{{ "{:,.2f}".format(total_banked|float) }}</div>
+        </div>
+        <div>
+            <div class="label">Total sales recorded</div>
+            <div class="amount"><small>KES</small>{{ "{:,.2f}".format(total_sales|float) }}</div>
+        </div>
+        <div>
+            <div class="label">{% if outstanding|float < 0 %}Banked above sales{% else %}Still to bank{% endif %}</div>
+            <div class="amount"><small>KES</small>{{ "{:,.2f}".format((outstanding|float)|abs) }}</div>
+        </div>
+    </div>
+    <div class="hero-progress">
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ banked_pct|round(0)|int }}" aria-label="Share of sales banked">
+            <span style="width: {{ banked_pct|round(1) }}%"></span>
+        </div>
+        <div class="progress-note">{{ banked_pct|round(1) }}% of recorded sales has been banked</div>
+    </div>
+</section>
+
+<form method="POST" action="{{ url_for('banking') }}" id="bankForm" novalidate>
+<div class="bank-grid">
+
+    <!-- Record a deposit -->
+    <div class="bank-card">
+        <div class="bank-card-header">
+            <h5>Record a deposit</h5>
+            <p>Enter money a branch has paid into the bank or remitted by M-PESA.</p>
+        </div>
+
+        <div class="bank-body">
+            <div class="form-grid">
+
+                <div class="bank-field full">
+                    <label class="bank-label" for="branchSearch">Branch *</label>
+                    <input class="bank-input" type="search" id="branchSearch" placeholder="Type to filter branches" autocomplete="off" aria-label="Search branch names">
+                    <div class="branch-search-status" id="branchSearchStatus" aria-live="polite">{{ positions|length }} branches available</div>
+
+                    <select class="bank-input mt-2" name="branch_id" id="branch_id" required aria-label="Selected branch">
+                        <option value="">Select a branch</option>
+                        {% for p in positions %}
+                        <option value="{{ p.id }}"
+                                data-sales="{{ p.sales_total|float }}"
+                                data-banked="{{ p.banked_total|float }}">{{ p.branch_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="bank-field">
+                    <label class="bank-label" for="bank_date">Banking date *</label>
+                    <input class="bank-input" type="date" id="bank_date" name="bank_date" value="{{ today }}" max="{{ today }}" required>
+                    <small>The day the money reached the bank.</small>
+                </div>
+
+                <div class="bank-field">
+                    <span class="bank-label" id="paymentLabel">Payment type *</span>
+                    <div class="segmented" role="radiogroup" aria-labelledby="paymentLabel">
+                        <input type="radio" name="payment_type" id="pay_mpesa" value="MPESA" required>
+                        <label for="pay_mpesa">M-PESA</label>
+                        <input type="radio" name="payment_type" id="pay_cash" value="CASH">
+                        <label for="pay_cash">Cash</label>
+                    </div>
+                    <small>How the money was banked.</small>
+                </div>
+
+                <div class="bank-field">
+                    <label class="bank-label" for="amount">Amount banked *</label>
+                    <div class="money">
+                        <input class="bank-input" type="number" id="amount" name="amount" min="0.01" max="9999999999999.99" step="0.01" value="" placeholder="0.00" inputmode="decimal" required>
+                    </div>
+                    <small>Exactly as shown on the slip or M-PESA message.</small>
+                </div>
+
+                <div class="bank-field">
+                    <label class="bank-label" for="reference">Slip or M-PESA reference *</label>
+                    <input class="bank-input" type="text" id="reference" name="reference" maxlength="60" autocomplete="off" placeholder="e.g. SLP-004512 or QJK7X2ABCD" required>
+                    <small>Each reference can be used once per branch.</small>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch position + save -->
+    <aside class="bank-card bank-aside" aria-label="Branch position">
+        <div class="bank-card-header">
+            <h5>Branch position</h5>
+            <p>What this branch has sold and banked so far.</p>
+        </div>
+        <div class="bank-body">
+            <div class="summary-row"><span>Branch</span><b id="sumBranch">Not selected</b></div>
+            <div class="summary-row"><span>Sales recorded</span><b id="sumSales">KES 0.00</b></div>
+            <div class="summary-row"><span>Already banked</span><b id="sumBanked">KES 0.00</b></div>
+            <div class="summary-row"><span>Still to bank</span><b id="sumOutstanding">KES 0.00</b></div>
+            <button type="button" class="use-outstanding" id="useOutstanding">Use the amount still to bank</button>
+
+            <div class="summary-total">
+                <span>This deposit</span>
+                <span class="bank-total">KES <span id="depositTotal">0.00</span></span>
+            </div>
+            <p class="after-note" id="afterNote" aria-live="polite">Select a branch to see what is left to bank.</p>
+
+            <div class="form-error" id="formError" role="alert"></div>
+            <button type="submit" class="bank-btn" id="saveBankBtn">Save deposit</button>
+        </div>
+    </aside>
+</div>
+</form>
+
+<!-- Branch balances -->
+<div class="bank-card">
+    <div class="bank-card-header">
+        <h5>Branch balances</h5>
+        <p>Sales recorded against the amount each branch has banked.</p>
+    </div>
+
+    <div class="tools">
+        <input type="search" id="balanceSearch" class="bank-search" placeholder="Search branches" aria-label="Search branch balances">
+        <div class="filter-chips" role="group" aria-label="Filter by status">
+            <button type="button" class="chip active" data-filter="">All</button>
+            <button type="button" class="chip" data-filter="outstanding">Still to bank</button>
+            <button type="button" class="chip" data-filter="cleared">Cleared</button>
+            <button type="button" class="chip" data-filter="over">Over-banked</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="bank-table" id="balanceTable">
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th class="num">Sales (KES)</th>
+                    <th class="num">Banked (KES)</th>
+                    <th class="num">Still to bank (KES)</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in positions %}
+                {% set pct = ((p.banked_total / p.sales_total * 100)|float) if p.sales_total > 0 else 0 %}
+                <tr class="balance-row" data-status="{{ p.status }}">
+                    <td class="branch-name">{{ p.branch_name }}</td>
+                    <td class="num">{{ "{:,.2f}".format(p.sales_total|float) }}</td>
+                    <td class="num">{{ "{:,.2f}".format(p.banked_total|float) }}</td>
+                    <td class="num">{{ "{:,.2f}".format(p.outstanding|float) }}</td>
+                    <td>
+                        <span class="mini-bar" aria-hidden="true"><span style="width: {{ [pct, 100]|min|round(0) }}%"></span></span>
+                        <span class="muted">{{ [pct, 100]|min|round(0)|int }}%</span>
+                    </td>
+                    <td>
+                        {% if p.status == 'cleared' %}
+                            <span class="badge-pill st-cleared">{% if p.sales_total > 0 %}Cleared{% else %}No sales yet{% endif %}</span>
+                        {% elif p.status == 'outstanding' %}
+                            <span class="badge-pill st-outstanding">Still to bank</span>
+                        {% else %}
+                            <span class="badge-pill st-over">Over-banked</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bank-empty" id="balanceEmpty">No branches match. Try a different search or filter.</div>
+    <div class="bank-footer" id="balanceFooter" aria-live="polite">Showing {{ positions|length }} branches</div>
+</div>
+
+<!-- Deposit history -->
+<div class="bank-card">
+    <div class="bank-card-header">
+        <h5>Deposit records</h5>
+        <p>Every deposit recorded, newest first.</p>
+    </div>
+
+    <div class="tools">
+        <input type="search" id="depositSearch" class="bank-search" placeholder="Search by branch, reference or date" aria-label="Search deposit records">
+        <div class="filter-chips" role="group" aria-label="Filter by payment type">
+            <button type="button" class="chip active" data-filter="">All</button>
+            <button type="button" class="chip" data-filter="mpesa">M-PESA</button>
+            <button type="button" class="chip" data-filter="cash">Cash</button>
+        </div>
+    </div>
+
+    {% if banking_records %}
+    <div class="table-responsive">
+        <table class="bank-table" id="depositTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Branch</th>
+                    <th>Payment</th>
+                    <th>Reference</th>
+                    <th class="num">Amount (KES)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in banking_records %}
+                <tr class="deposit-row" data-type="{{ r.payment_type|lower|replace('-', '') }}">
+                    <td>{{ r.bank_date.strftime('%d %b %Y') }}</td>
+                    <td class="branch-name">{{ r.branch_name }}</td>
+                    <td class="muted">{{ 'M-PESA' if r.payment_type|lower|replace('-', '') == 'mpesa' else (r.payment_type|title if r.payment_type else 'Unspecified') }}</td>
+                    <td class="ref">{{ r.reference }}</td>
+                    <td class="num">{{ "{:,.2f}".format(r.amount|float) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="bank-empty" id="depositEmpty">No deposits match. Try a different search or filter.</div>
+    {% else %}
+    <div class="bank-empty static">No deposits yet. Record the first one using the form above.</div>
+    {% endif %}
+
+    <div class="bank-footer" id="depositFooter" aria-live="polite">Showing {{ banking_records|length }} deposit records</div>
+</div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const $ = id => document.getElementById(id);
+    const amountInput = $("amount");
+    const branchSelect = $("branch_id");
+    const branchSearch = $("branchSearch");
+    const branchStatus = $("branchSearchStatus");
+    const formError = $("formError");
+    const useBtn = $("useOutstanding");
+    const afterNote = $("afterNote");
+    const originalOptions = Array.from(branchSelect.options).slice(1);
+
+    const fmt = n => n.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const paymentValue = () => {
+        const c = document.querySelector('input[name="payment_type"]:checked');
+        return c ? c.value : "";
+    };
+
+    function position() {
+        const opt = branchSelect.options[branchSelect.selectedIndex];
+        if (!branchSelect.value) return null;
+        const sales = Number(opt.dataset.sales) || 0;
+        const banked = Number(opt.dataset.banked) || 0;
+        return { name: opt.textContent.trim(), sales, banked, outstanding: sales - banked };
+    }
+
+    function refresh() {
+        const amount = Number(amountInput.value) || 0;
+        const pos = position();
+
+        $("depositTotal").textContent = fmt(amount);
+
+        if (!pos) {
+            $("sumBranch").textContent = "Not selected";
+            $("sumSales").textContent = $("sumBanked").textContent = $("sumOutstanding").textContent = "KES 0.00";
+            useBtn.classList.remove("show");
+            afterNote.className = "after-note";
+            afterNote.textContent = "Select a branch to see what is left to bank.";
+            return;
+        }
+
+        $("sumBranch").textContent = pos.name;
+        $("sumSales").textContent = "KES " + fmt(pos.sales);
+        $("sumBanked").textContent = "KES " + fmt(pos.banked);
+        $("sumOutstanding").textContent = "KES " + fmt(Math.max(pos.outstanding, 0));
+        useBtn.classList.toggle("show", pos.outstanding > 0);
+
+        const left = pos.outstanding - amount;
+        if (amount <= 0) {
+            afterNote.className = "after-note";
+            afterNote.textContent = pos.outstanding > 0
+                ? "KES " + fmt(pos.outstanding) + " is still to be banked."
+                : "Nothing is currently outstanding for this branch.";
+        } else if (left > 0.004) {
+            afterNote.className = "after-note";
+            afterNote.textContent = "KES " + fmt(left) + " will still be to bank after this deposit.";
+        } else if (left >= -0.004) {
+            afterNote.className = "after-note";
+            afterNote.textContent = "This deposit clears everything outstanding for the branch.";
+        } else {
+            afterNote.className = "after-note warn";
+            afterNote.textContent = "This is KES " + fmt(-left) + " more than the branch has recorded in sales. Check the amount.";
+        }
+    }
+
+    amountInput.addEventListener("input", refresh);
+    branchSelect.addEventListener("change", refresh);
+    useBtn.addEventListener("click", function () {
+        const pos = position();
+        if (pos && pos.outstanding > 0) {
+            amountInput.value = pos.outstanding.toFixed(2);
+            refresh();
+            amountInput.focus();
+        }
+    });
+
+    // Filter branches in the form without reloading.
+    branchSearch.addEventListener("input", function () {
+        const term = branchSearch.value.trim().toLowerCase();
+        const previous = branchSelect.value;
+
+        branchSelect.innerHTML = "";
+        const ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = "Select a branch";
+        branchSelect.appendChild(ph);
+
+        let matches = 0;
+        originalOptions.forEach(function (o) {
+            if (o.textContent.trim().toLowerCase().includes(term)) {
+                branchSelect.appendChild(o.cloneNode(true));
+                matches++;
+            }
+        });
+
+        if (previous && Array.from(branchSelect.options).some(o => o.value === previous)) {
+            branchSelect.value = previous;
+        }
+        branchStatus.textContent = matches + (matches === 1 ? " matching branch" : " matching branches");
+        refresh();
+    });
+
+    // Reusable search + chip filter for a table.
+    function wireTable(cfg) {
+        const rows = Array.from(document.querySelectorAll(cfg.rows));
+        const search = $(cfg.search);
+        const empty = $(cfg.empty);
+        const footer = $(cfg.footer);
+        const table = $(cfg.table);
+        const chips = Array.from(search.closest(".bank-card").querySelectorAll(".chip"));
+        let active = "";
+
+        function apply() {
+            const term = search.value.trim().toLowerCase();
+            let visible = 0;
+            rows.forEach(function (row) {
+                const show = row.textContent.toLowerCase().includes(term) &&
+                             (!active || row.dataset[cfg.key] === active);
+                row.style.display = show ? "" : "none";
+                if (show) visible++;
+            });
+            if (table) table.style.display = visible > 0 ? "" : "none";
+            if (empty) empty.style.display = visible > 0 ? "none" : "block";
+            footer.textContent = "Showing " + visible + " of " + rows.length + " " + cfg.noun;
+        }
+
+        search.addEventListener("input", apply);
+        chips.forEach(chip => chip.addEventListener("click", function () {
+            chips.forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            active = chip.dataset.filter;
+            apply();
+        }));
+    }
+
+    wireTable({ rows: ".balance-row", search: "balanceSearch", empty: "balanceEmpty", footer: "balanceFooter", table: "balanceTable", key: "status", noun: "branches" });
+    if ($("depositTable")) {
+        wireTable({ rows: ".deposit-row", search: "depositSearch", empty: "depositEmpty", footer: "depositFooter", table: "depositTable", key: "type", noun: "deposit records" });
+    }
+
+    // Inline validation instead of alert().
+    $("bankForm").addEventListener("submit", function (event) {
+        const amount = Number(amountInput.value);
+        let message = "";
+
+        if (!branchSelect.value) message = "Select a branch.";
+        else if (!$("bank_date").value) message = "Choose the banking date.";
+        else if (!paymentValue()) message = "Choose M-PESA or Cash.";
+        else if (!Number.isFinite(amount) || amount <= 0) message = "Enter an amount greater than zero.";
+        else if (!$("reference").value.trim()) message = "Enter the slip number or M-PESA code.";
+
+        formError.textContent = message;
+        formError.classList.toggle("show", Boolean(message));
+        if (message) event.preventDefault();
+    });
+
+    refresh();
+});
+</script>
+
+{% endblock %}
